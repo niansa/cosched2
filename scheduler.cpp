@@ -5,6 +5,10 @@
 
 
 
+void CoSched::Task::kill() {
+    get_scheduler().delete_task(this);
+}
+
 async::result<bool> CoSched::Task::yield() {
     if (state == TaskState::terminating) {
         // If it was terminating, it can finally be declared dead now
@@ -63,10 +67,17 @@ CoSched::Task *CoSched::Scheduler::get_next_task() {
 
 void CoSched::Scheduler::run() {
     while (!tasks.empty()) {
-        // Get next task
-        auto next_task = get_next_task();
+        // If current task isn't sleeping, it is considered a zombie so removed from list
+        if (Task::current && Task::current->state != TaskState::sleeping) {
+            delete_task(std::exchange(Task::current, nullptr));
+        }
+
+        // Get new task
+        Task::current = get_next_task();
 
         // Resume task if any
-        if (next_task) next_task->resume.raise();
+        if (Task::current) Task::current->resume.raise();
     }
 }
+
+thread_local CoSched::Task *CoSched::Task::current;

@@ -31,6 +31,8 @@ enum class TaskState {
 class Task {
     friend class Scheduler;
 
+    static thread_local class Task *current;
+
     class Scheduler *scheduler;
     async::recurring_event resume;
 
@@ -41,11 +43,18 @@ class Task {
     TaskState state = TaskState::running;
     bool suspended = false;
 
+    void kill();
+
 public:
     Task(Scheduler *scheduler, const std::string& name)
         : scheduler(scheduler), name(name) {}
     Task(const Task&) = delete;
     Task(Task&&) = delete;
+
+    static inline
+    Task& get_current() {
+        return *current;
+    }
 
     const std::string& get_name() const {
         return name;
@@ -88,36 +97,6 @@ public:
 };
 
 
-class TaskPtr {
-    unsigned *ref_count;
-    Task *task;
-
-    void finalize();
-
-public:
-    TaskPtr(Task *task) : task(task) {
-        ref_count = new unsigned(1);
-    }
-    ~TaskPtr() {
-        if (!task) return;
-        if (--*ref_count == 0) {
-            delete ref_count;
-            finalize();
-        }
-    }
-    TaskPtr(const TaskPtr& o) : ref_count(o.ref_count), task(o.task) {
-        ++*ref_count;
-    }
-    TaskPtr(TaskPtr&& o) : ref_count(o.ref_count), task(o.task) {
-        o.task = nullptr;
-    }
-
-    auto operator ->() {
-        return task;
-    }
-};
-
-
 class Scheduler {
     friend class Task;
     friend class TaskPtr;
@@ -138,17 +117,13 @@ public:
         return tasks;
     }
 
-    TaskPtr create_task(const std::string& name) {
+    // Creates new task, returns it and switches to it
+    void create_task(const std::string& name) {
         std::scoped_lock L(tasks_mutex);
-        return TaskPtr(tasks.emplace_back(std::make_unique<Task>(this, name)).get());
+        Task::current = tasks.emplace_back(std::make_unique<Task>(this, name)).get();
     }
 
     void run();
 };
-
-
-inline void TaskPtr::finalize() {
-    task->get_scheduler().delete_task(task);
-}
 }
 #endif // _SCHEDULER_HPP
