@@ -26,6 +26,13 @@ async::result<bool> CoSched::Task::yield() {
 }
 
 
+void CoSched::Scheduler::clean_task(Task *task) {
+    // If current task isn't sleeping, it is considered a zombie so removed from list
+    if (task && task->state != TaskState::sleeping) {
+        delete_task(std::exchange(task, nullptr));
+    }
+}
+
 void CoSched::Scheduler::delete_task(Task *task) {
     std::scoped_lock L(tasks_mutex);
     tasks.erase(std::find_if(tasks.begin(), tasks.end(), [task] (const auto& o) {return o.get() == task;}));
@@ -66,10 +73,8 @@ CoSched::Task *CoSched::Scheduler::get_next_task() {
 }
 
 void CoSched::Scheduler::run_once() {
-    // If current task isn't sleeping, it is considered a zombie so removed from list
-    if (Task::current && Task::current->state != TaskState::sleeping) {
-        delete_task(std::exchange(Task::current, nullptr));
-    }
+    // Clean up old task
+    clean_task(Task::current);
 
     // Get new task
     Task::current = get_next_task();
@@ -77,5 +82,6 @@ void CoSched::Scheduler::run_once() {
     // Resume task if any
     if (Task::current) Task::current->resume.raise();
 }
+
 
 thread_local CoSched::Task *CoSched::Task::current;

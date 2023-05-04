@@ -104,8 +104,8 @@ class Scheduler {
     std::mutex tasks_mutex;
     std::vector<std::unique_ptr<Task>> tasks;
 
+    void clean_task(Task *task);
     void delete_task(Task *task);
-
     Task *get_next_task();
 
 public:
@@ -113,24 +113,38 @@ public:
     Scheduler(const Scheduler&) = delete;
     Scheduler(Scheduler&&) = delete;
 
+    // Returns all tasks
     const auto& get_tasks() const {
         return tasks;
     }
 
+    // Checks if there is nothing left to do
+    bool has_work() const {
+        return !tasks.empty();
+    }
+
     // Creates new task, returns it and switches to it
+    // DO NOT call from within a task
     void create_task(const std::string& name) {
+        // Clean up old task
+        clean_task(Task::current);
+
+        // Create and switch to new task
         std::scoped_lock L(tasks_mutex);
         Task::current = tasks.emplace_back(std::make_unique<Task>(this, name)).get();
     }
 
     // Run until there are no more tasks left to process
+    // DO NOT call from within a task
     void run() {
-        while (!tasks.empty()) {
+        // Repeat while we have work to do
+        while (has_work()) {
             run_once();
         }
     }
 
     // Run once
+    // DO NOT call from within a task
     void run_once();
 };
 }

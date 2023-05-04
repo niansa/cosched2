@@ -1,4 +1,4 @@
-#include "scheduler.hpp"
+#include "scheduled_thread.hpp"
 
 #include <iostream>
 #include <string>
@@ -14,14 +14,17 @@ async::result<void> test_task() {
 }
 
 int main () {
-    CoSched::Scheduler scheduler;
+    CoSched::ScheduledThread scheduler;
     for (const auto& name : {"A", "B", "C", "D", "E", "F"}) {
-        scheduler.create_task(name);
-        async::detach(test_task());
-        auto& task = CoSched::Task::get_current();
-        if (task.get_name() == "B" || task.get_name() == "D") {
-            task.set_priority(CoSched::PRIO_HIGH);
-        }
+        scheduler.enqueue([name] (CoSched::Scheduler& scheduler) {
+            scheduler.create_task(name);
+            async::detach(test_task());
+            auto& task = CoSched::Task::get_current();
+            if (task.get_name() == "B" || task.get_name() == "D") {
+                task.set_priority(CoSched::PRIO_HIGH);
+            }
+        });
     }
-    scheduler.run();
+    scheduler.start();
+    scheduler.wait();
 }
