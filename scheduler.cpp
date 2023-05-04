@@ -65,19 +65,17 @@ CoSched::Task *CoSched::Scheduler::get_next_task() {
     return next_task;
 }
 
-void CoSched::Scheduler::run() {
-    while (!tasks.empty()) {
-        // If current task isn't sleeping, it is considered a zombie so removed from list
-        if (Task::current && Task::current->state != TaskState::sleeping) {
-            delete_task(std::exchange(Task::current, nullptr));
-        }
-
-        // Get new task
-        Task::current = get_next_task();
-
-        // Resume task if any
-        if (Task::current) Task::current->resume.raise();
+void CoSched::Scheduler::run_once() {
+    // If current task isn't sleeping, it is considered a zombie so removed from list
+    if (Task::current && Task::current->state != TaskState::sleeping) {
+        delete_task(std::exchange(Task::current, nullptr));
     }
+
+    // Get new task
+    Task::current = get_next_task();
+
+    // Resume task if any
+    if (Task::current) Task::current->resume.raise();
 }
 
 thread_local CoSched::Task *CoSched::Task::current;

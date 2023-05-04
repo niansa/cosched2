@@ -123,7 +123,15 @@ public:
         Task::current = tasks.emplace_back(std::make_unique<Task>(this, name)).get();
     }
 
-    void run();
+    // Run until there are no more tasks left to process
+    void run() {
+        while (!tasks.empty()) {
+            run_once();
+        }
+    }
+
+    // Run once
+    void run_once();
 };
 }
 #endif // _SCHEDULER_HPP
