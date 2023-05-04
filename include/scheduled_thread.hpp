@@ -38,7 +38,7 @@ public:
     }
 
     // DO NOT call from within a task
-    void enqueue(const std::string& task_name, const std::function<async::result<void> ()>& task_fcn) {
+    void create_task(const std::string& task_name, const std::function<async::result<void> ()>& task_fcn) {
         // Enqueue function
         {
             std::scoped_lock L(queue_mutex);
@@ -57,7 +57,7 @@ public:
 
     // MUST already be running
     void shutdown() {
-        enqueue("Shutdown Initiator", [this] () -> async::result<void> {
+        create_task("Shutdown Initiator", [this] () -> async::result<void> {
                     shutdown_requested = true;
                     co_return;
                 });
