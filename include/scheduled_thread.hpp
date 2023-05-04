@@ -46,6 +46,7 @@ class ScheduledThread {
 public:
     ScheduledThread() {}
 
+    // MUST NOT already be running
     void start() {
         thread = std::thread([this] () {
             main_loop();
@@ -64,11 +65,13 @@ public:
         conditional_lock.notify_one();
     }
 
+    // MUST already be running
     void wait() {
         joined = true;
         thread.join();
     }
 
+    // MUST already be running
     void shutdown() {
         enqueue([this] (Scheduler&) {
             shutdown_requested = true;
