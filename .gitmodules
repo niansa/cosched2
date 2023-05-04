@@ -1,0 +1,3 @@
+[submodule "libasync"]
+	path = libasync
+	url = https://gitlab.com/niansa/libasync.git
