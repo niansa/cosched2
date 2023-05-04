@@ -12,9 +12,14 @@
 
 namespace CoSched {
 class ScheduledThread {
+    struct QueueEntry {
+        std::string task_name;
+        std::function<async::result<void> ()> task_fcn;
+    };
+
     std::thread thread;
     std::mutex queue_mutex;
-    std::queue<std::function<void (Scheduler&)>> queue;
+    std::queue<QueueEntry> queue;
     std::mutex conditional_mutex;
     std::condition_variable conditional_lock;
     bool shutdown_requested = false;
@@ -33,11 +38,11 @@ public:
     }
 
     // DO NOT call from within a task
-    void enqueue(const std::function<void (Scheduler&)>& f) {
+    void enqueue(const std::string& task_name, const std::function<async::result<void> ()>& task_fcn) {
         // Enqueue function
         {
             std::scoped_lock L(queue_mutex);
-            queue.emplace(f);
+            queue.emplace(QueueEntry{task_name, task_fcn});
         }
 
         // Notify thread
@@ -52,9 +57,10 @@ public:
 
     // MUST already be running
     void shutdown() {
-        enqueue([this] (Scheduler&) {
-            shutdown_requested = true;
-        });
+        enqueue("Shutdown Initiator", [this] () -> async::result<void> {
+                    shutdown_requested = true;
+                    co_return;
+                });
     }
 };
 }

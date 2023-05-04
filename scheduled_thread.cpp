@@ -10,9 +10,10 @@ void CoSched::ScheduledThread::main_loop() {
         // Start all new tasks enqueued
         std::scoped_lock L(queue_mutex);
         while (!queue.empty()) {
-            auto f = std::move(queue.front());
+            auto e = std::move(queue.front());
             queue.pop();
-            f(sched);
+            sched.create_task(e.task_name);
+            async::detach(e.task_fcn());
         }
         // Run once
         sched.run_once();
