@@ -5,18 +5,20 @@
 
 
 
-async::result<void> CoSched::Task::yield() {
+async::result<bool> CoSched::Task::yield() {
     if (state == TaskState::terminating) {
         // If it was terminating, it can finally be declared dead now
         state = TaskState::dead;
-    } else {
-        // It's just sleeping otherwise
-        state = TaskState::sleeping;
+        co_return false;
     }
+    // It's just sleeping
+    state = TaskState::sleeping;
     // Let's wait until we're back up!
     stopped_at = std::chrono::system_clock::now();
     co_await resume.async_wait();
+    // Here we go, let's keep going...
     state = TaskState::running;
+    co_return true;
 }
 
 

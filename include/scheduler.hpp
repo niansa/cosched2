@@ -84,7 +84,7 @@ public:
         return suspended;
     }
 
-    async::result<void> yield();
+    async::result<bool> yield();
 };
 
 

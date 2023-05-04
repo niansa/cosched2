@@ -5,10 +5,10 @@
 
 
 
-async::result<void> test_task(CoSched::TaskPtr t) {
-    for (unsigned x = 100; x != 0; x--) {
-        std::cout << t->get_name() << ": " << x << '\n';
-        co_await t->yield();
+async::result<void> test_task(CoSched::TaskPtr task) {
+    for (unsigned x = 100; co_await task->yield(); x--) {
+        std::cout << task->get_name() << ": " << x << '\n';
+        if (x == 10) task->terminate();
     }
 }
 
