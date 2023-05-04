@@ -4,9 +4,7 @@
 #include <vector>
 #include <mutex>
 #include <memory>
-#include <limits>
 #include <chrono>
-#include <algorithm>
 #include <async/result.hpp>
 #include <async/recurring-event.hpp>
 
@@ -25,8 +23,8 @@ enum {
 enum class TaskState {
     running,
     sleeping,
-    starting,
-    stopping
+    terminating,
+    dead
 };
 
 
@@ -40,7 +38,8 @@ class Task {
 
     std::string name;
     Priority priority = PRIO_NORMAL;
-    TaskState state = TaskState::starting;
+    TaskState state = TaskState::running;
+    bool suspended = false;
 
 public:
     Task(Scheduler *scheduler, const std::string& name)
@@ -68,6 +67,21 @@ public:
 
     Scheduler& get_scheduler() const {
         return *scheduler;
+    }
+
+    void terminate() {
+        if (state == TaskState::running) {
+            state = TaskState::terminating;
+        } else {
+            state = TaskState::dead;
+        }
+    }
+
+    void set_suspended(bool value = true) {
+        suspended = value;
+    }
+    bool is_suspended() const {
+        return suspended;
     }
 
     async::result<void> yield();
@@ -111,12 +125,7 @@ class Scheduler {
     std::mutex tasks_mutex;
     std::vector<std::unique_ptr<Task>> tasks;
 
-    async::result<void> yield(Task *task);
-
-    void delete_task(Task *task) {
-        std::scoped_lock L(tasks_mutex);
-        tasks.erase(std::find_if(tasks.begin(), tasks.end(), [task] (const auto& o) {return o.get() == task;}));
-    }
+    void delete_task(Task *task);
 
     Task *get_next_task();
 
@@ -134,21 +143,9 @@ public:
         return TaskPtr(tasks.emplace_back(std::make_unique<Task>(this, name)).get());
     }
 
-    void run() {
-        while (!tasks.empty()) {
-            // Get next task
-            auto next_task = get_next_task();
-
-            // Resume task if any
-            if (next_task) next_task->resume.raise();
-        }
-    }
+    void run();
 };
 
-
-inline async::result<void> Task::yield() {
-    co_await scheduler->yield(this);
-}
 
 inline void TaskPtr::finalize() {
     task->get_scheduler().delete_task(task);

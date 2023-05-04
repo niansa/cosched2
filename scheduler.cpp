@@ -1,12 +1,28 @@
 #include "scheduler.hpp"
 
+#include <limits>
+#include <algorithm>
 
 
-async::result<void> CoSched::Scheduler::yield(Task *task) {
-    task->state = TaskState::sleeping;
-    task->stopped_at = std::chrono::system_clock::now();
-    co_await task->resume.async_wait();
-    task->state = TaskState::running;
+
+async::result<void> CoSched::Task::yield() {
+    if (state == TaskState::terminating) {
+        // If it was terminating, it can finally be declared dead now
+        state = TaskState::dead;
+    } else {
+        // It's just sleeping otherwise
+        state = TaskState::sleeping;
+    }
+    // Let's wait until we're back up!
+    stopped_at = std::chrono::system_clock::now();
+    co_await resume.async_wait();
+    state = TaskState::running;
+}
+
+
+void CoSched::Scheduler::delete_task(Task *task) {
+    std::scoped_lock L(tasks_mutex);
+    tasks.erase(std::find_if(tasks.begin(), tasks.end(), [task] (const auto& o) {return o.get() == task;}));
 }
 
 CoSched::Task *CoSched::Scheduler::get_next_task() {
@@ -18,6 +34,8 @@ CoSched::Task *CoSched::Scheduler::get_next_task() {
     for (auto& task : tasks) {
         // Filter tasks that aren't sleeping
         if (task->state != TaskState::sleeping) continue;
+        // Filter tasks that are suspended
+        if (task->suspended) continue;
         // Update max priority
         if (task->priority > max_prio) {
             max_prio = task->priority;
@@ -39,4 +57,14 @@ CoSched::Task *CoSched::Scheduler::get_next_task() {
 
     // Return next task;
     return next_task;
+}
+
+void CoSched::Scheduler::run() {
+    while (!tasks.empty()) {
+        // Get next task
+        auto next_task = get_next_task();
+
+        // Resume task if any
+        if (next_task) next_task->resume.raise();
+    }
 }
