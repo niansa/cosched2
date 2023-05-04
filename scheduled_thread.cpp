@@ -8,12 +8,14 @@ void CoSched::ScheduledThread::main_loop() {
     // Loop until shutdown is requested
     while (!shutdown_requested) {
         // Start all new tasks enqueued
-        std::scoped_lock L(queue_mutex);
-        while (!queue.empty()) {
-            auto e = std::move(queue.front());
-            queue.pop();
-            sched.create_task(e.task_name);
-            async::detach(e.task_fcn());
+        {
+            std::scoped_lock L(queue_mutex);
+            while (!queue.empty()) {
+                auto e = std::move(queue.front());
+                queue.pop();
+                sched.create_task(e.task_name);
+                async::detach(e.task_fcn());
+            }
         }
         // Run once
         sched.run_once();
