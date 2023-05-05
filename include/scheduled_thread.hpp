@@ -46,7 +46,7 @@ public:
         });
     }
 
-    // Cann be called from within a task
+    // Can be called from anywhere
     void create_task(const std::string& task_name, std::function<AwaitableTask<void> ()>&& task_fcn) {
         // Enqueue function
         {
