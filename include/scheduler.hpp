@@ -5,11 +5,14 @@
 #include <mutex>
 #include <memory>
 #include <chrono>
-#include <async/result.hpp>
-#include <async/recurring-event.hpp>
+#include <AwaitableTask.hpp>
+#include <SingleEvent.hpp>
 
 
 namespace CoSched {
+using namespace basiccoro;
+
+
 using Priority = uint8_t;
 enum {
     PRIO_LOWEST = -99,
@@ -34,7 +37,7 @@ class Task {
     static thread_local class Task *current;
 
     class Scheduler *scheduler;
-    async::recurring_event resume;
+    std::unique_ptr<SingleEvent<void>> resume_event;
 
     std::chrono::system_clock::time_point stopped_at;
 
@@ -93,7 +96,7 @@ public:
         return suspended;
     }
 
-    async::result<bool> yield();
+    AwaitableTask<bool> yield();
 };
 
 

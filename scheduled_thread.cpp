@@ -14,7 +14,7 @@ void CoSched::ScheduledThread::main_loop() {
                 auto e = std::move(queue.front());
                 queue.pop();
                 sched.create_task(e.task_name);
-                async::detach(e.task_fcn());
+                e.task_fcn();
             }
         }
         // Run once

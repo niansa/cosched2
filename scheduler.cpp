@@ -5,11 +5,12 @@
 
 
 
+namespace CoSched {
 void CoSched::Task::kill() {
     get_scheduler().delete_task(this);
 }
 
-async::result<bool> CoSched::Task::yield() {
+AwaitableTask<bool> Task::yield() {
     if (state == TaskState::terminating) {
         // If it was terminating, it can finally be declared dead now
         state = TaskState::dead;
@@ -17,28 +18,30 @@ async::result<bool> CoSched::Task::yield() {
     }
     // It's just sleeping
     state = TaskState::sleeping;
+    // Create event for resume
+    resume_event = std::make_unique<SingleEvent<void>>();
     // Let's wait until we're back up!
     stopped_at = std::chrono::system_clock::now();
-    co_await resume.async_wait();
+    co_await *resume_event;
     // Here we go, let's keep going...
     state = TaskState::running;
     co_return true;
 }
 
 
-void CoSched::Scheduler::clean_task(Task *task) {
+void Scheduler::clean_task(Task *task) {
     // If current task isn't sleeping, it is considered a zombie so removed from list
     if (task && task->state != TaskState::sleeping) {
         delete_task(std::exchange(task, nullptr));
     }
 }
 
-void CoSched::Scheduler::delete_task(Task *task) {
+void Scheduler::delete_task(Task *task) {
     std::scoped_lock L(tasks_mutex);
     tasks.erase(std::find_if(tasks.begin(), tasks.end(), [task] (const auto& o) {return o.get() == task;}));
 }
 
-CoSched::Task *CoSched::Scheduler::get_next_task() {
+Task *Scheduler::get_next_task() {
     std::scoped_lock L(tasks_mutex);
 
     // Get tasks with highest priority
@@ -72,7 +75,7 @@ CoSched::Task *CoSched::Scheduler::get_next_task() {
     return next_task;
 }
 
-void CoSched::Scheduler::run_once() {
+void Scheduler::run_once() {
     // Clean up old task
     clean_task(Task::current);
 
@@ -80,8 +83,9 @@ void CoSched::Scheduler::run_once() {
     Task::current = get_next_task();
 
     // Resume task if any
-    if (Task::current) Task::current->resume.raise();
+    if (Task::current) Task::current->resume_event->set();
 }
 
 
-thread_local CoSched::Task *CoSched::Task::current;
+thread_local Task *Task::current;
+}
