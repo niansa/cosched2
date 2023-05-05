@@ -42,8 +42,8 @@ AwaitableTask<bool> Task::yield() {
 
 
 void Scheduler::clean_task(Task *task) {
-    // If current task isn't sleeping, it is considered a zombie so removed from list
-    if (task && task->state != TaskState::sleeping) {
+    // If current task has no way to resume, it is considered a zombie so removed from list
+    if (task && task->resume_event == nullptr) {
         delete_task(std::exchange(task, nullptr));
     }
 }
