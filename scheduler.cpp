@@ -49,13 +49,10 @@ void Scheduler::clean_task(Task *task) {
 }
 
 void Scheduler::delete_task(Task *task) {
-    std::scoped_lock L(tasks_mutex);
     tasks.erase(std::find_if(tasks.begin(), tasks.end(), [task] (const auto& o) {return o.get() == task;}));
 }
 
 Task *Scheduler::get_next_task() {
-    std::scoped_lock L(tasks_mutex);
-
     // Get tasks with highest priority
     std::vector<Task*> max_prio_tasks;
     Priority max_prio = std::numeric_limits<Priority>::min();

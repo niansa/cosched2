@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <mutex>
 #include <memory>
 #include <chrono>
 #include <any>
@@ -113,7 +112,6 @@ class Scheduler {
     friend class Task;
     friend class TaskPtr;
 
-    std::mutex tasks_mutex;
     std::vector<std::unique_ptr<Task>> tasks;
 
     void clean_task(Task *task);
@@ -142,7 +140,6 @@ public:
         clean_task(Task::current);
 
         // Create and switch to new task
-        std::scoped_lock L(tasks_mutex);
         Task::current = tasks.emplace_back(std::make_unique<Task>(this, name)).get();
     }
 

@@ -12,6 +12,8 @@
 
 namespace CoSched {
 class ScheduledThread {
+    static thread_local ScheduledThread *current;
+
     struct QueueEntry {
         std::string task_name;
         std::function<AwaitableTask<void> ()> start_fcn;
@@ -30,14 +32,21 @@ class ScheduledThread {
 public:
     ScheduledThread() {}
 
+    // Current thread MUST be made by start()
+    inline static
+    ScheduledThread *get_current() {
+        return current;
+    }
+
     // MUST NOT already be running
     void start() {
         thread = std::thread([this] () {
+            current = this;
             main_loop();
         });
     }
 
-    // DO NOT call from within a task
+    // Cann be called from within a task
     void create_task(const std::string& task_name, std::function<AwaitableTask<void> ()>&& task_fcn) {
         // Enqueue function
         {

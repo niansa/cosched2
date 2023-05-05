@@ -2,18 +2,21 @@
 
 
 
-void CoSched::ScheduledThread::main_loop() {
+namespace CoSched {
+void ScheduledThread::main_loop() {
     // Create scheduler
     Scheduler sched;
     // Loop until shutdown is requested
     while (!shutdown_requested) {
         // Start all new tasks enqueued
         {
-            std::scoped_lock L(queue_mutex);
+            std::unique_lock L(queue_mutex);
             while (!queue.empty()) {
                 // Get queue entry
+                L.lock();
                 auto e = std::move(queue.front());
                 queue.pop();
+                L.unlock();
                 // Create task for it
                 sched.create_task(e.task_name);
                 // Move start function somewhere else
@@ -31,4 +34,8 @@ void CoSched::ScheduledThread::main_loop() {
             conditional_lock.wait(lock);
         }
     }
+}
+
+
+thread_local ScheduledThread *ScheduledThread::current;
 }
