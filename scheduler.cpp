@@ -11,11 +11,16 @@ void CoSched::Task::kill() {
 }
 
 AwaitableTask<bool> Task::yield() {
+    // If it was terminating, it can finally be declared dead now
     if (state == TaskState::terminating) {
-        // If it was terminating, it can finally be declared dead now
         state = TaskState::dead;
         co_return false;
     }
+    // Dead tasks may not yield
+    if (state == TaskState::dead) {
+        co_return false;
+    }
+    if (this != current) co_return true;
     // It's just sleeping
     state = TaskState::sleeping;
     // Create event for resume
@@ -23,6 +28,13 @@ AwaitableTask<bool> Task::yield() {
     // Let's wait until we're back up!
     stopped_at = std::chrono::system_clock::now();
     co_await *resume_event;
+    // Delete resume event
+    resume_event = nullptr;
+    // If task was terminating during sleep, it can finally be declared dead now
+    if (state == TaskState::terminating) {
+        state = TaskState::dead;
+        co_return false;
+    }
     // Here we go, let's keep going...
     state = TaskState::running;
     co_return true;
@@ -48,8 +60,8 @@ Task *Scheduler::get_next_task() {
     std::vector<Task*> max_prio_tasks;
     Priority max_prio = std::numeric_limits<Priority>::min();
     for (auto& task : tasks) {
-        // Filter tasks that aren't sleeping
-        if (task->state != TaskState::sleeping) continue;
+        // Filter tasks can't currently be resumed
+        if (task->resume_event == nullptr) continue;
         // Filter tasks that are suspended
         if (task->suspended) continue;
         // Update max priority

@@ -14,7 +14,7 @@ namespace CoSched {
 class ScheduledThread {
     struct QueueEntry {
         std::string task_name;
-        std::function<AwaitableTask<void> ()> task_fcn;
+        std::function<AwaitableTask<void> ()> start_fcn;
     };
 
     std::thread thread;
@@ -38,11 +38,11 @@ public:
     }
 
     // DO NOT call from within a task
-    void create_task(const std::string& task_name, const std::function<AwaitableTask<void> ()>& task_fcn) {
+    void create_task(const std::string& task_name, std::function<AwaitableTask<void> ()>&& task_fcn) {
         // Enqueue function
         {
             std::scoped_lock L(queue_mutex);
-            queue.emplace(QueueEntry{task_name, task_fcn});
+            queue.emplace(QueueEntry{task_name, std::move(task_fcn)});
         }
 
         // Notify thread

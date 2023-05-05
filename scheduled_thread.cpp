@@ -11,10 +11,15 @@ void CoSched::ScheduledThread::main_loop() {
         {
             std::scoped_lock L(queue_mutex);
             while (!queue.empty()) {
+                // Get queue entry
                 auto e = std::move(queue.front());
                 queue.pop();
+                // Create task for it
                 sched.create_task(e.task_name);
-                e.task_fcn();
+                // Move start function somewhere else
+                auto& start_fcn = std::any_cast<decltype(e.start_fcn)&>(Task::get_current().properties.emplace("start_function", std::move(e.start_fcn)).first->second);
+                // Call start function
+                start_fcn();
             }
         }
         // Run once

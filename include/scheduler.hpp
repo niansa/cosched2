@@ -2,9 +2,11 @@
 #define _SCHEDULER_HPP
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <mutex>
 #include <memory>
 #include <chrono>
+#include <any>
 #include <AwaitableTask.hpp>
 #include <SingleEvent.hpp>
 
@@ -24,10 +26,10 @@ enum {
 };
 
 enum class TaskState {
-    running,
-    sleeping,
-    terminating,
-    dead
+    running, // Task is currently in a normal running state
+    sleeping, // Task is currently waiting to be scheduled again
+    terminating, // Task will start terminating soon
+    dead // Taks is currently terminating
 };
 
 
@@ -37,7 +39,7 @@ class Task {
     static thread_local class Task *current;
 
     class Scheduler *scheduler;
-    std::unique_ptr<SingleEvent<void>> resume_event;
+    std::unique_ptr<SingleEvent<void>> resume_event = nullptr;
 
     std::chrono::system_clock::time_point stopped_at;
 
@@ -54,11 +56,16 @@ public:
     Task(const Task&) = delete;
     Task(Task&&) = delete;
 
+    // Misc property storage, unused
+    std::unordered_map<std::string, std::any> properties;
+
+    // Returns the task that is currently being executed on this thread
     static inline
     Task& get_current() {
         return *current;
     }
 
+    // Sets a task name
     const std::string& get_name() const {
         return name;
     }
@@ -66,6 +73,7 @@ public:
         name = value;
     }
 
+    // Sets the task priority
     Priority get_priority() const {
         return priority;
     }
@@ -73,22 +81,22 @@ public:
         priority = value;
     }
 
+    // Returns the state of this task
     TaskState get_state() const {
         return state;
     }
 
+    // Returns the scheduler that is scheduling this task
     Scheduler& get_scheduler() const {
         return *scheduler;
     }
 
+    // Terminates the task as soon as possible
     void terminate() {
-        if (state == TaskState::running) {
-            state = TaskState::terminating;
-        } else {
-            state = TaskState::dead;
-        }
+        state = TaskState::terminating;
     }
 
+    // Suspends (pauses) the task as soon as possible
     void set_suspended(bool value = true) {
         suspended = value;
     }
@@ -96,6 +104,7 @@ public:
         return suspended;
     }
 
+    // Allows other tasks to execute
     AwaitableTask<bool> yield();
 };
 
