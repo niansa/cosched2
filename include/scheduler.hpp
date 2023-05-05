@@ -103,6 +103,11 @@ public:
         return suspended;
     }
 
+    // Returns if task is dead
+    bool is_dead() const {
+        return state == TaskState::dead;
+    }
+
     // Allows other tasks to execute
     AwaitableTask<bool> yield();
 };

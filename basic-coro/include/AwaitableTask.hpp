@@ -156,8 +156,8 @@ class AwaitableTask : public detail::TaskBase<detail::AwaitablePromise<T>>
 public:
    using Base::Base;
 
-    class awaiter;
-    friend class awaiter;
+    struct awaiter;
+    friend struct awaiter;
     awaiter operator co_await() const;
 };
 
