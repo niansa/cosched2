@@ -14,7 +14,7 @@ namespace CoSched {
 using namespace basiccoro;
 
 
-using Priority = uint8_t;
+using Priority = int8_t;
 enum {
     PRIO_LOWEST = -99,
     PRIO_LOW = -20,
