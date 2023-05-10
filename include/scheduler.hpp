@@ -30,7 +30,7 @@ enum class TaskState {
     running, // Task is currently in a normal running state
     sleeping, // Task is currently waiting to be scheduled again
     terminating, // Task will start terminating soon
-    dead // Taks is currently terminating
+    dead // Task is currently terminating
 };
 
 
