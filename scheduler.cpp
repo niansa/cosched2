@@ -6,6 +6,17 @@
 
 
 namespace CoSched {
+std::string_view get_state_string(TaskState state) {
+    switch (state) {
+    case TaskState::dead: return "dead";
+    case TaskState::running: return "running";
+    case TaskState::sleeping: return "sleeping";
+    case TaskState::terminating: return "terminating";
+    default: return "invalid";
+    }
+}
+
+
 void CoSched::Task::kill() {
     get_scheduler().delete_task(this);
 }

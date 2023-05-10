@@ -32,6 +32,9 @@ enum class TaskState {
 };
 
 
+std::string_view get_state_string(TaskState);
+
+
 class Task {
     friend class Scheduler;
 
@@ -83,6 +86,9 @@ public:
     // Returns the state of this task
     TaskState get_state() const {
         return state;
+    }
+    std::string_view get_state_string() const {
+        return ::CoSched::get_state_string(state);
     }
 
     // Returns the scheduler that is scheduling this task
