@@ -16,7 +16,7 @@ using namespace basiccoro;
 
 using Priority = int8_t;
 enum {
-    PRIO_LOWEST = -99,\
+    PRIO_LOWEST = -99,
     PRIO_LOWER = -60,
     PRIO_LOW = -20,
     PRIO_NORMAL = 0,
