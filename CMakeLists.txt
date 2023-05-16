@@ -11,6 +11,7 @@ add_library(cosched STATIC
     basic-coro/SingleEvent.cpp
 )
 target_include_directories(cosched PUBLIC include/ basic-coro/include/)
+set_target_properties(cosched PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 #add_executable(test test.cpp)
 #target_link_libraries(test PRIVATE cosched)
