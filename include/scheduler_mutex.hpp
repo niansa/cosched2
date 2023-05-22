@@ -6,7 +6,7 @@
 
 
 namespace CoSched {
-class LockGuard {
+class [[nodiscard("Discarding the lock guard will release the lock immediately.")]] LockGuard {
     class Mutex *mutex;
 
     void unlock();
@@ -42,7 +42,6 @@ public:
         unlock();
     }
 
-    [[nodiscard("Discarding the result of this function will release the lock immediately.")]]
     AwaitableTask<LockGuard> lock() {
         auto& task = Task::get_current();
         // Make sure the lock is not already held by same task
