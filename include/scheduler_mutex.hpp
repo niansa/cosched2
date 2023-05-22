@@ -38,6 +38,7 @@ public:
         }
         // Something is waiting or the lock to be released, just pass it by.
         resume_on_unlock.front()->set_suspended(false);
+        resume_on_unlock.pop();
     }
 };
 
