@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(cosched SHARED
     scheduler.cpp include/scheduler.hpp
     scheduled_thread.cpp include/scheduled_thread.hpp
+    include/scheduler_mutex.hpp
     basic-coro/SingleEvent.cpp
 )
 target_include_directories(cosched PUBLIC include/ basic-coro/include/)
