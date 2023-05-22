@@ -6,8 +6,32 @@
 
 
 namespace CoSched {
+class LockGuard {
+    class Mutex *mutex;
+
+    void unlock();
+
+public:
+    LockGuard() : mutex(nullptr) {}
+    LockGuard(Mutex *m) : mutex(m) {}
+    LockGuard(const LockGuard&) = delete;
+    LockGuard(LockGuard&& o) : mutex(o.mutex) {
+        o.mutex = nullptr;
+    }
+    ~LockGuard() {
+        if (mutex) unlock();
+    }
+
+    auto& operator =(LockGuard&& o) {
+        mutex = o.mutex;
+        o.mutex = nullptr;
+        return *this;
+    }
+};
+
+
 class Mutex {
-    bool held = false;
+    Task *holder = nullptr;
     std::queue<Task*> resume_on_unlock;
 
 public:
@@ -18,51 +42,43 @@ public:
         unlock();
     }
 
-    AwaitableTask<void> lock() {
+    [[nodiscard("Discarding the result of this function will release the lock immediately.")]]
+    AwaitableTask<LockGuard> lock() {
+        auto& task = Task::get_current();
+        // Make sure the lock is not already held by same task
+        if (holder == &task) co_return LockGuard();
         // Just hold lock and return if lock isn't currently being held
-        if (!held) {
-            held = true;
-            co_return;
+        if (!holder) {
+            holder = &task;
+            co_return LockGuard(this);
         }
         // Lock is already being held, add task to queue and suspend until lock is passed
-        auto& task = Task::get_current();
         resume_on_unlock.push(&task);
         task.set_suspended(true);
         co_await task.yield();
+        co_return LockGuard(this);
     }
-    void unlock() {
+    bool unlock() {
+        auto& task = Task::get_current();
+        // Make sure we are actually the ones holding the lock
+        if (holder != &task) return false;
         // If nothing is waiting for the lock to release, just release it and we're done
         if (resume_on_unlock.empty()) {
-            held = false;
-            return;
+            holder = nullptr;
+            return true;
         }
         // Something is waiting or the lock to be released, just pass it by.
-        resume_on_unlock.front()->set_suspended(false);
+        auto next_task = resume_on_unlock.front();
+        next_task->set_suspended(false);
+        holder = next_task;
         resume_on_unlock.pop();
+        return true;
     }
 };
 
 
-class ScopedLock {
-    Mutex& mutex;
-    bool held_by_us = false;
-
-public:
-    ScopedLock(Mutex &m) : mutex(m) {}
-    ScopedLock(const ScopedLock&) = delete;
-    ScopedLock(ScopedLock&&) = delete;
-    ~ScopedLock() {
-        if (held_by_us) unlock();
-    }
-
-    AwaitableTask<void> lock() {
-        co_await mutex.lock();
-        held_by_us = true;
-    }
-    void unlock() {
-        mutex.unlock();
-        held_by_us = false;
-    }
-};
+inline void LockGuard::unlock() {
+    mutex->unlock();
+}
 }
 #endif // SCHEDULER_MUTEX_HPP
