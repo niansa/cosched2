@@ -32,7 +32,7 @@ public:
     }
     void unlock() {
         // If nothing is waiting for the lock to release, just release it and we're done
-        if (!resume_on_unlock.empty()) {
+        if (resume_on_unlock.empty()) {
             held = false;
             return;
         }
