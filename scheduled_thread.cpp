@@ -1,4 +1,4 @@
-#include "scheduled_thread.hpp"
+#include "cosched2/scheduled_thread.hpp"
 #include "minicoro.h"
 
 

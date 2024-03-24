@@ -1,4 +1,4 @@
-#include "scheduler.hpp"
+#include "cosched2/scheduler.hpp"
 #define MINICORO_IMPL
 #include "minicoro.h"
 

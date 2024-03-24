@@ -1,7 +1,6 @@
-#include "scheduled_thread.hpp"
-
 #include <iostream>
 #include <string>
+#include <cosched2/scheduled_thread.hpp>
 
 
 
