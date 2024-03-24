@@ -16,7 +16,7 @@ class ScheduledThread {
 
     struct QueueEntry {
         std::string task_name;
-        std::function<AwaitableTask<void> ()> start_fcn;
+        std::function<void ()> start_fcn;
     };
 
     std::thread thread;
@@ -47,7 +47,7 @@ public:
     }
 
     // Can be called from anywhere
-    void create_task(const std::string& task_name, std::function<AwaitableTask<void> ()>&& task_fcn) {
+    void create_task(const std::string& task_name, std::function<void ()>&& task_fcn) {
         // Enqueue function
         {
             std::scoped_lock L(queue_mutex);
@@ -66,9 +66,8 @@ public:
 
     // MUST already be running
     void shutdown() {
-        create_task("Shutdown Initiator", [this] () -> AwaitableTask<void> {
+        create_task("Shutdown Initiator", [this] () {
                     shutdown_requested = true;
-                    co_return;
                 });
     }
 };

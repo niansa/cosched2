@@ -1,4 +1,6 @@
 #include "scheduler.hpp"
+#define MINICORO_IMPL
+#include "minicoro.h"
 
 #include <limits>
 #include <algorithm>
@@ -21,45 +23,43 @@ void CoSched::Task::kill() {
     get_scheduler().delete_task(this);
 }
 
-AwaitableTask<bool> Task::yield() {
+bool Task::yield() {
     // If it was terminating, it can finally be declared dead now
     if (state == TaskState::terminating) {
         state = TaskState::dead;
-        co_return false;
+        return false;
     }
     // Dead tasks may not yield
     if (state == TaskState::dead) {
-        co_return false;
+        return false;
     }
-    if (this != current) co_return true;
+    if (this != current) return true;
     // It's just sleeping
     state = TaskState::sleeping;
-    // Create event for resume
-    resume_event = std::make_unique<SingleEvent<void>>();
     // Let's wait until we're back up!
     stopped_at = std::chrono::system_clock::now();
-    co_await *resume_event;
-    // Delete resume event
-    resume_event = nullptr;
+    if (mco_yield(coroutine) != MCO_SUCCESS)
+        return false;
     // If task was terminating during sleep, it can finally be declared dead now
     if (state == TaskState::terminating) {
         state = TaskState::dead;
-        co_return false;
+        return false;
     }
     // Here we go, let's keep going...
     state = TaskState::running;
-    co_return true;
+    return true;
 }
 
 
 void Scheduler::clean_task(Task *task) {
     // If current task has no way to resume, it is considered a zombie so removed from list
-    if (task && task->resume_event == nullptr) {
-        delete_task(std::exchange(task, nullptr));
+    if (task && task->state == TaskState::deleting) {
+        delete_task(task);
     }
 }
 
 void Scheduler::delete_task(Task *task) {
+    mco_destroy(task->coroutine);
     tasks.erase(std::find_if(tasks.begin(), tasks.end(), [task] (const auto& o) {return o.get() == task;}));
 }
 
@@ -69,7 +69,7 @@ Task *Scheduler::get_next_task() {
     Priority max_prio = std::numeric_limits<Priority>::min();
     for (auto& task : tasks) {
         // Filter tasks can't currently be resumed
-        if (task->resume_event == nullptr) continue;
+        if (task->state == TaskState::running) continue;
         // Filter tasks that are suspended
         if (task->suspended) continue;
         // Update max priority
@@ -103,7 +103,7 @@ void Scheduler::run_once() {
     Task::current = get_next_task();
 
     // Resume task if any
-    if (Task::current) Task::current->resume_event->set();
+    if (Task::current) mco_resume(Task::current->coroutine);
 }
 
 

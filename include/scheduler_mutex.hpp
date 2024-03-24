@@ -42,20 +42,20 @@ public:
         unlock();
     }
 
-    AwaitableTask<LockGuard> lock() {
+    LockGuard lock() {
         auto& task = Task::get_current();
         // Make sure the lock is not already held by same task
-        if (holder == &task) co_return LockGuard();
+        if (holder == &task) return LockGuard();
         // Just hold lock and return if lock isn't currently being held
         if (!holder) {
             holder = &task;
-            co_return LockGuard(this);
+            return LockGuard(this);
         }
         // Lock is already being held, add task to queue and suspend until lock is passed
         resume_on_unlock.push(&task);
         task.set_suspended(true);
-        co_await task.yield();
-        co_return LockGuard(this);
+        task.yield();
+        return LockGuard(this);
     }
     bool unlock() {
         auto& task = Task::get_current();

@@ -5,13 +5,13 @@
 #include <unordered_map>
 #include <memory>
 #include <chrono>
-#include <any>
-#include <AwaitableTask.hpp>
-#include <SingleEvent.hpp>
+#include <functional>
+
+struct mco_coro;
 
 
 namespace CoSched {
-using namespace basiccoro;
+using Coroutine = mco_coro*;
 
 
 using Priority = int8_t;
@@ -30,7 +30,8 @@ enum class TaskState {
     running, // Task is currently in a normal running state
     sleeping, // Task is currently waiting to be scheduled again
     terminating, // Task will start terminating soon
-    dead // Task is currently terminating
+    dead, // Task is currently terminating
+    deleting // Task is awaiting deletion
 };
 
 
@@ -39,11 +40,14 @@ std::string_view get_state_string(TaskState);
 
 class Task {
     friend class Scheduler;
+    friend class ScheduledThread;
 
     static thread_local class Task *current;
 
     class Scheduler *scheduler;
-    std::unique_ptr<SingleEvent<void>> resume_event = nullptr;
+    Coroutine coroutine = nullptr;
+
+    std::function<void ()> start_fcn;
 
     std::chrono::system_clock::time_point stopped_at;
 
@@ -59,9 +63,6 @@ public:
         : scheduler(scheduler), name(name) {}
     Task(const Task&) = delete;
     Task(Task&&) = delete;
-
-    // Misc property storage, unused
-    std::unordered_map<std::string, std::any> properties;
 
     // Returns the task that is currently being executed on this thread
     static inline
@@ -117,7 +118,7 @@ public:
     }
 
     // Allows other tasks to execute
-    AwaitableTask<bool> yield();
+    bool yield();
 };
 
 

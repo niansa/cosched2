@@ -1,21 +1,20 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(cosched LANGUAGES CXX)
+project(cosched2 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_library(cosched SHARED
+add_library(cosched2 SHARED
     scheduler.cpp include/scheduler.hpp
     scheduled_thread.cpp include/scheduled_thread.hpp
     include/scheduler_mutex.hpp
-    basic-coro/SingleEvent.cpp
 )
-target_include_directories(cosched PUBLIC include/ basic-coro/include/)
-set_target_properties(cosched PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(cosched2 PUBLIC include/)
+set_target_properties(cosched2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 #add_executable(test test.cpp)
-#target_link_libraries(test PRIVATE cosched)
+#target_link_libraries(test PRIVATE cosched2)
 
-install(TARGETS cosched
+install(TARGETS cosched2
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -36,15 +36,17 @@ public:
 int main () {
     CoSched::ScheduledThread scheduler;
     for (const auto& name : {"A", "B", "C"}) {
-        scheduler.create_task(name, [lt = LifetimeTest()] () -> CoSched::AwaitableTask<void> {
+        scheduler.create_task(name, [lt = LifetimeTest()] () {
             auto& task = CoSched::Task::get_current();
-            std::cout << task.get_name() << "Scope start" << std::endl;
+            if (task.get_name() == "A")
+                task.set_priority(CoSched::PRIO_HIGH);
+            std::cout << task.get_name() << ": Scope start" << std::endl;
             lt.read_test();
-            if (!co_await task.yield()) co_return;
-            std::cout << task.get_name() << "Scope middle" << std::endl;
+            if (!task.yield()) return;
+            std::cout << task.get_name() << ": Scope middle" << std::endl;
             lt.read_test();
-            if (!co_await task.yield()) co_return;
-            std::cout << task.get_name() << "Scope end" << std::endl;
+            if (!task.yield()) return;
+            std::cout << task.get_name() << ": Scope end" << std::endl;
             lt.read_test();
         });
     }

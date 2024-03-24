@@ -1,4 +1,5 @@
 #include "scheduled_thread.hpp"
+#include "minicoro.h"
 
 
 
@@ -10,7 +11,7 @@ void ScheduledThread::main_loop() {
     while (!shutdown_requested) {
         // Start all new tasks enqueued
         {
-            std::unique_lock L(queue_mutex);
+            std::unique_lock<std::mutex> L(queue_mutex);
             while (!queue.empty()) {
                 // Get queue entry
                 auto e = std::move(queue.front());
@@ -19,10 +20,16 @@ void ScheduledThread::main_loop() {
                 L.unlock();
                 // Create task for it
                 sched.create_task(e.task_name);
-                // Move start function somewhere else
-                auto& start_fcn = std::any_cast<decltype(e.start_fcn)&>(Task::get_current().properties.emplace("start_function", std::move(e.start_fcn)).first->second);
-                // Call start function
-                start_fcn();
+                // Move start function
+                Task::current->start_fcn = std::move(e.start_fcn);
+                // Create coroutine
+                mco_desc desc = mco_desc_init([] (mco_coro *coro) {
+                    Task::get_current().start_fcn();
+                    Task::get_current().state = TaskState::deleting;
+                }, 0);
+                mco_create(&Task::current->coroutine, &desc);
+                // Resume coroutine immediately
+                mco_resume(Task::current->coroutine);
                 // Lock queue
                 L.lock();
             }
